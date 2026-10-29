@@ -2,6 +2,7 @@ import { Room, Client, CloseCode } from "colyseus";
 import { WorldState, PlayerState } from "./schema/WorldState.js";
 import { GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, POSE_MIN_GAP_MS, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
 import { sanitizePose } from "../sanitizePose.js";
+import { sanitizeLook, type Look } from "../sanitizeLook.js";
 import { getPlayers, type PlayerDoc } from "../db.js";
 import { sanitizeProgress } from "../sanitize.js";
 import { ranksOf, topBoards } from "../leaderboard.js";
@@ -36,6 +37,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private loaded = new Set<string>();
   // sessionId -> time of the last relayed pose (rate limit).
   private lastPose = new Map<string, number>();
+  // sessionId -> that player's last sent look (sanitizeLook.ts).
+  private looks = new Map<string, Look>();
 
   messages = {
     // Debounced push of the client's whole progress. Upserts, so a first save creates the document.
@@ -78,6 +81,18 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       if (now - (this.lastPose.get(client.sessionId) ?? 0) < POSE_MIN_GAP_MS) return;
       this.lastPose.set(client.sessionId, now);
       this.broadcast("pose", { id: client.sessionId, name: p.username, ...pose }, { except: client });
+    },
+    // The sender's Bloxity look (equipped avatar + proportions), sent on connect and on every
+    // customizer change. Kept per session so a late joiner gets everyone's look, and relayed to the
+    // others now.
+    look: (client: Client, msg: unknown) => {
+      const look = sanitizeLook(msg);
+      if (!look || !this.state.players.has(client.sessionId)) return;
+      const first = !this.looks.has(client.sessionId);
+      this.looks.set(client.sessionId, look);
+      this.broadcast("look", { id: client.sessionId, ...look }, { except: client });
+      if (!first) return;
+      for (const [id, other] of this.looks) if (id !== client.sessionId) client.send("look", { id, ...other });
     },
     // Re-states identity after a login/logout that happens AFTER join (a guest who signs in
     // mid-session). The server answers with progress/noProgress for the new identity.
@@ -150,6 +165,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private forgetSession(sessionId: string) {
     this.state.players.delete(sessionId);
     this.lastPose.delete(sessionId);
+    this.looks.delete(sessionId);
     this.broadcast("playerLeft", { id: sessionId });
     this.userIds.delete(sessionId);
     this.identified.delete(sessionId);
