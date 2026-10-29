@@ -40,6 +40,21 @@ export const LEADERBOARD_STATS = ["rebirths", "wins", "breath", "bestDistance"] 
 export type LeaderboardStat = (typeof LEADERBOARD_STATS)[number];
 export const LEADERBOARD_SIZE = 10;
 export const LEADERBOARD_EVERY_MS = 60 * 1000;
+// Boxity's own leaderboards (boxityBoards.ts; the client declares the same boards, config.js
+// BOXITY_BOARDS): the same four stats, reported from the saves. `id` is permanent on Boxity (lowercase
+// a-z 0-9 _ -) and its first declaration fixes label / mode / format / reset (later changes go
+// through the dashboard). `divide` turns the stored value into the score.
+export const BOXITY_BOARDS = [
+  { id: "wins", label: "Wins", mode: "latest", format: "compact", reset: "none", stat: "wins", divide: 1 },
+  { id: "rebirths", label: "Rebirths", mode: "best", format: "number", reset: "none", stat: "rebirths", divide: 1 },
+  { id: "breath", label: "Breath", mode: "latest", format: "compact", reset: "none", stat: "breath", divide: 1 },
+  { id: "distance", label: "Best Distance (m)", mode: "best", format: "number", reset: "none", stat: "bestDistance", divide: 1 },
+] as const;
+// Queued scores go out every BOXITY_FLUSH_MS, at most BOXITY_SCORES_PER_CALL per call (Boxity's limit).
+export const BOXITY_FLUSH_MS = 15 * 1000;
+export const BOXITY_SCORES_PER_CALL = 200;
+// Bloxity user ids: the Legion id the boards rank (boxityBoards.ts legionId).
+export const USER_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 // Ids from the client's catalogs: slugs, so nothing odd is stored.
 export const ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;

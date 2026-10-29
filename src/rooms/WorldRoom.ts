@@ -4,6 +4,7 @@ import { GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, NAME_MAX, PFP_MAX_LEN, RECONNECT
 import { getPlayers, type PlayerDoc } from "../db.js";
 import { sanitizeProgress } from "../sanitize.js";
 import { ranksOf, topBoards } from "../leaderboard.js";
+import { reportScores } from "../boxityBoards.js";
 
 function sanitizeName(raw: unknown): string {
   return typeof raw === "string" ? raw.slice(0, NAME_MAX) : "";
@@ -59,6 +60,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
           },
           { upsert: true },
         );
+        reportScores(userId, patch);
       } catch (err) {
         console.warn("[WorldRoom] saveProgress failed", err);
       }
@@ -199,6 +201,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const now = Date.now();
     if (!doc) client.send("noProgress", { serverTime: now });
     else client.send("progress", { ...(sanitizeProgress(doc) ?? {}), serverTime: now });
+    if (doc) reportScores(userId, doc); // saves from before Boxity's boards rank too
     void this.sendLeaderboard(client);
   }
 }
