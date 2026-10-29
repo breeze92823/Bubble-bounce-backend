@@ -1,6 +1,6 @@
 import assert from "assert";
 
-import { CURRENCY_MAX } from "../src/constants.js";
+import { CURRENCY_MAX, TUTORIAL_MAX } from "../src/constants.js";
 import { sanitizeProgress } from "../src/sanitize.js";
 
 describe("sanitizeProgress", () => {
@@ -56,5 +56,12 @@ describe("sanitizeProgress", () => {
     assert.deepStrictEqual(out.gifts, { playtimeMs: 0, claimed: [0, 3], day: "Mon" });
     assert.deepStrictEqual(out.daily, { day: 7, lastClaim: 5 });
     assert.deepStrictEqual(out.spin, { lastFree: 1, free: 2 });
+  });
+
+  it("bounds the tutorial step", () => {
+    assert.strictEqual(sanitizeProgress({ tutorial: 2.9 })!.tutorial, 2);
+    assert.strictEqual(sanitizeProgress({ tutorial: 999 })!.tutorial, TUTORIAL_MAX);
+    assert.strictEqual(sanitizeProgress({ tutorial: -3 })!.tutorial, 0);
+    assert.strictEqual(sanitizeProgress({ tutorial: "4" })!.tutorial, undefined);
   });
 });

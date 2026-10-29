@@ -33,7 +33,7 @@ export interface PlayerDoc {
   spin?: { lastFree: number; free: number };
   goalIndex?: number;
   codes?: string[];
-  tutorial?: number;
+  tutorial?: number; // client TUTORIAL index reached; past the end = done or skipped ($max, never drops)
   lastSeen?: number; // epoch ms of the last time the player left
   version: number;
   updatedAt: Date;

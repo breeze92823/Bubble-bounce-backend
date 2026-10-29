@@ -44,15 +44,17 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       if (!userId) return;
       const players = getPlayers();
       if (!players) return; // Mongo unset/unreachable -- degrade silently
-      // The personal best only ever goes up ($max), so a stale or replayed save can't lower it.
-      const { bestDistance, ...rest } = patch;
+      // The personal best and the tutorial step only ever go up ($max), so a stale or replayed
+      // save can't lower the best or bring back a finished (or skipped) tutorial.
+      const { bestDistance, tutorial, ...rest } = patch;
+      const max = { ...(bestDistance !== undefined && { bestDistance }), ...(tutorial !== undefined && { tutorial }) };
       try {
         await players.updateOne(
           { _id: userId },
           {
             // Display name comes from this connection's own PlayerState, not `msg`.
             $set: { ...rest, username: p.username || "Player", updatedAt: new Date() },
-            ...(bestDistance !== undefined && { $max: { bestDistance } }),
+            ...(Object.keys(max).length > 0 && { $max: max }),
             $setOnInsert: { version: 1 },
           },
           { upsert: true },

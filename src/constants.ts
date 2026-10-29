@@ -19,7 +19,7 @@ export const CURRENCY_MAX = 1e33; // breath, wins
 export const REBIRTHS_MAX = 1e9;
 export const LEVEL_MAX = 1e6;
 export const DISTANCE_MAX = 1e6; // personal best ride, m
-export const TUTORIAL_MAX = 64; // client TUTORIAL.length, with slack
+export const TUTORIAL_MAX = 64; // client TUTORIAL.length (SKIP saves exactly that), with slack
 export const GOAL_MAX = 1000; // client GOALS.length, with slack
 
 // Owned catalog ids (client BUBBLES, WANDS, pet types, boosts), with slack.
