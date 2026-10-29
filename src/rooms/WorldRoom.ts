@@ -1,6 +1,7 @@
 import { Room, Client, CloseCode } from "colyseus";
 import { WorldState, PlayerState } from "./schema/WorldState.js";
-import { GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
+import { GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, POSE_MIN_GAP_MS, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
+import { sanitizePose } from "../sanitizePose.js";
 import { getPlayers, type PlayerDoc } from "../db.js";
 import { sanitizeProgress } from "../sanitize.js";
 import { ranksOf, topBoards } from "../leaderboard.js";
@@ -33,6 +34,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   // sessionIds whose current identity's save has been read: only these may write. A save sent
   // before the load answered would overwrite the stored progress with a fresh player's defaults.
   private loaded = new Set<string>();
+  // sessionId -> time of the last relayed pose (rate limit).
+  private lastPose = new Map<string, number>();
 
   messages = {
     // Debounced push of the client's whole progress. Upserts, so a first save creates the document.
@@ -64,6 +67,17 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       } catch (err) {
         console.warn("[WorldRoom] saveProgress failed", err);
       }
+    },
+    // Live look of a player (position, animation, bubble), ~10 Hz. Never stored: relayed to the
+    // others in the room, tagged with the sender's session id and roster name.
+    pose: (client: Client, msg: unknown) => {
+      const p = this.state.players.get(client.sessionId);
+      const pose = sanitizePose(msg);
+      if (!p || !pose) return;
+      const now = Date.now();
+      if (now - (this.lastPose.get(client.sessionId) ?? 0) < POSE_MIN_GAP_MS) return;
+      this.lastPose.set(client.sessionId, now);
+      this.broadcast("pose", { id: client.sessionId, name: p.username, ...pose }, { except: client });
     },
     // Re-states identity after a login/logout that happens AFTER join (a guest who signs in
     // mid-session). The server answers with progress/noProgress for the new identity.
@@ -135,6 +149,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   // Drops a session's per-connection bookkeeping.
   private forgetSession(sessionId: string) {
     this.state.players.delete(sessionId);
+    this.lastPose.delete(sessionId);
+    this.broadcast("playerLeft", { id: sessionId });
     this.userIds.delete(sessionId);
     this.identified.delete(sessionId);
     this.loaded.delete(sessionId);

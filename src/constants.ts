@@ -62,3 +62,7 @@ export const ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 // The client's per-browser fallback id for players who are not signed in to Bloxity.
 // Guests are never persisted.
 export const GUEST_ID_PREFIX = "guest-";
+
+// Live poses (sanitizePose.ts): the fastest accepted rate per player and the world's bounds.
+export const POSE_MIN_GAP_MS = 40;
+export const POSE_COORD_MAX = 10_000;
